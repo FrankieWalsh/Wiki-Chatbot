@@ -1,18 +1,19 @@
 # scripts/wiki_retriever.py
 import wikipediaapi
 import wikipedia
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer, util
+
+# Load the dense embedding model once
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def compute_relevance(query, text):
     """
-    Compute a cosine similarity score between the query and some text using TF-IDF.
+    Compute a cosine similarity score between the query and some text using dense embeddings.
     """
-    vectorizer = TfidfVectorizer(stop_words='english')
-    corpus = [query, text]
-    tfidf_matrix = vectorizer.fit_transform(corpus)
-    similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
-    return similarity
+    query_emb = model.encode(query, convert_to_tensor=True)
+    text_emb = model.encode(text, convert_to_tensor=True)
+    similarity = util.cos_sim(query_emb, text_emb)
+    return similarity.item()
 
 def is_medical_query(query):
     """
@@ -47,7 +48,7 @@ def get_wikipedia_content(query):
     Retrieve a Wikipedia page based on the query.
     
     1. Try a direct lookup and gather candidate pages from wikipedia.search().
-    2. Compute a TF-IDF–based relevance score using the page summary.
+    2. Compute a dense-embedding–based relevance score using the page summary.
     3. Boost pages that appear medically relevant based on their categories.
     4. For medical queries, filter out candidates whose titles suggest entertainment.
     5. Rank candidates by their (boosted) scores and return the best candidate's text.
@@ -80,8 +81,7 @@ def get_wikipedia_content(query):
     
     if not candidates:
         return None  # No pages found.
-    
-    # --- For medical queries, filter out entertainment pages if possible ---
+
     if is_medical_query(query):
         filtered = [cand for cand in candidates if not is_entertainment_page(cand["page"])]
         if filtered:

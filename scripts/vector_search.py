@@ -1,7 +1,9 @@
 # scripts/vector_search.py
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer, util
+
+# Load the model (you can also share the same model instance if preferred)
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def split_into_paragraphs(text):
     """
@@ -10,9 +12,9 @@ def split_into_paragraphs(text):
     paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
     return paragraphs
 
-def search_content(query, content, top_k=3):
+def search_content(query, content, top_k=7):
     """
-    Splits the content into paragraphs, vectorizes them along with the query,
+    Splits the content into paragraphs, encodes them along with the query using dense embeddings,
     and returns the top_k paragraphs ranked by cosine similarity.
     
     Args:
@@ -27,20 +29,19 @@ def search_content(query, content, top_k=3):
     if not paragraphs:
         return "No paragraphs found in the content."
     
-    # Append the query to the end of the corpus for vectorization.
-    corpus = paragraphs + [query]
-    vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
-    tfidf_matrix = vectorizer.fit_transform(corpus)
-
-    query_vector = tfidf_matrix[-1]
-    paragraph_vectors = tfidf_matrix[:-1]
-    similarities = cosine_similarity(query_vector, paragraph_vectors)[0]
-    top_indices = np.argsort(similarities)[::-1][:top_k]
+    # Encode all paragraphs and the query
+    paragraph_embeddings = model.encode(paragraphs, convert_to_tensor=True)
+    query_embedding = model.encode(query, convert_to_tensor=True)
     
+    # Compute cosine similarities using dense embeddings
+    cosine_scores = util.cos_sim(query_embedding, paragraph_embeddings)[0]
+    
+    # Get indices of the top_k paragraphs
+    top_indices = np.argsort(cosine_scores.cpu().numpy())[::-1][:top_k]
     results = []
     for idx in top_indices:
         results.append({
             "paragraph": paragraphs[idx],
-            "similarity_score": float(similarities[idx])
+            "similarity_score": float(cosine_scores[idx])
         })
     return results

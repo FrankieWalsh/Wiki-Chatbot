@@ -6,46 +6,27 @@ from transformers import pipeline
 
 app = Flask(__name__)
 
-# Initialize the summarization pipeline (this may take a minute on first run)
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+qa_pipeline = pipeline("text2text-generation", model="google/flan-t5-base")
 
 def generate_answer(query, search_results):
     """
-    Combine the retrieved paragraphs and use the summarization model
-    to generate an answer.
+    Combine the retrieved paragraphs and use a generative QA model to generate an answer.
+    The prompt instructs the model to provide a detailed answer with background information.
     """
     # Combine the top paragraphs into a single context block.
     context = " ".join([result["paragraph"] for result in search_results])
     
-    # Build the input text.
-    input_text = (
+    # Build a prompt that instructs the model to generate a detailed answer.
+    prompt = (
+        f"Answer the following question with a detailed explanation that includes background information:\n\n"
         f"Question: {query}\n\n"
         f"Context: {context}\n\n"
-        "Please answer the question given the context:"
+        "Answer:"
     )
 
-    # Tokenize the input text with truncation.
-    encoded = summarizer.tokenizer(
-        input_text,
-        truncation=True,
-        max_length=1024,
-        return_tensors="pt"
-    )
-    
-    # Decode back to a string (this string is now within the model's limits).
-    truncated_text = summarizer.tokenizer.decode(
-        encoded["input_ids"][0],
-        skip_special_tokens=True
-    )
-
-    # Generate the summary using the truncated text.
-    summary = summarizer(
-        truncated_text,
-        max_length=300,   # maximum length for the generated summary
-        min_length=40,    # minimum length for the generated summary
-        do_sample=False
-    )
-    return summary[0]["summary_text"]
+    # Generate an answer using the generative QA pipeline.
+    output = qa_pipeline(prompt, max_length=512, min_length=100, do_sample=False)
+    return output[0]["generated_text"]
 
 @app.route('/query', methods=['POST'])
 def query_endpoint():
@@ -59,7 +40,7 @@ def query_endpoint():
         return jsonify({"error": "No relevant Wikipedia content found"}), 404
 
     search_results = search_content(user_query, wiki_content)
-    if isinstance(search_results, str):  # error message returned from search_content
+    if isinstance(search_results, str):  
         return jsonify({"error": search_results}), 500
 
     answer = generate_answer(user_query, search_results)
