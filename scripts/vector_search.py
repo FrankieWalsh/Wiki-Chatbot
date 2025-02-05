@@ -1,4 +1,4 @@
-# vector_search.py
+# scripts/vector_search.py
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -17,15 +17,17 @@ def search_content(query, content, top_k=3):
     
     Args:
         query (str): The user's query.
-        content (str): Full text content (e.g., from a Wikipedia page).
+        content (str): Full text content (now from multiple Wikipedia pages).
         top_k (int): Number of top matching paragraphs to return.
     
     Returns:
-        list: A list of dictionaries containing paragraphs and their similarity scores.
+        list: A list of dictionaries containing the paragraph and its similarity score.
     """
     paragraphs = split_into_paragraphs(content)
     if not paragraphs:
         return "No paragraphs found in the content."
+    
+    # Append the query to the end of the corpus for vectorization.
     corpus = paragraphs + [query]
     vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
     tfidf_matrix = vectorizer.fit_transform(corpus)
@@ -34,13 +36,11 @@ def search_content(query, content, top_k=3):
     paragraph_vectors = tfidf_matrix[:-1]
     similarities = cosine_similarity(query_vector, paragraph_vectors)[0]
     top_indices = np.argsort(similarities)[::-1][:top_k]
-
+    
     results = []
     for idx in top_indices:
-        sim_score = similarities[idx]
         results.append({
             "paragraph": paragraphs[idx],
-            "similarity_score": float(sim_score)  # Convert numpy float to standard float.
+            "similarity_score": float(similarities[idx])
         })
-
     return results
