@@ -2,42 +2,133 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>AI Query Interface</title>
+    <title>Chatbot Interface</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
     <style>
+        /* Global styling */
         body {
-            font-family: Arial, sans-serif;
-            margin: 40px;
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
-        textarea {
-            width: 100%;
-            max-width: 600px;
+        /* Chat container styling */
+        .chat-container {
+            flex: 1;
+            width: 80%;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            overflow-y: auto;
         }
-        button {
-            margin-top: 10px;
-            padding: 8px 16px;
+        /* Message bubble styling */
+        .message {
+            max-width: 70%;
+            margin-bottom: 15px;
+            padding: 12px 18px;
+            border-radius: 20px;
+            position: relative;
             font-size: 1rem;
+            line-height: 1.4;
         }
-        .answer {
-            margin-top: 20px;
-            padding: 10px;
-            background-color: #f2f2f2;
-            border-radius: 5px;
-            max-width: 600px;
+        .user-message {
+            background-color: #dcf8c6;
+            margin-left: auto;
+            text-align: right;
+        }
+        .bot-message {
+            background-color: #ececec;
+            margin-right: auto;
+            text-align: left;
+        }
+        /* Triangular pointers for bubbles */
+        .message:after {
+            content: "";
+            position: absolute;
+            bottom: 0;
+            width: 0;
+            height: 0;
+            border: 10px solid transparent;
+        }
+        .user-message:after {
+            right: -20px;
+            border-left-color: #dcf8c6;
+            border-right: 0;
+            border-bottom: 0;
+        }
+        .bot-message:after {
+            left: -20px;
+            border-right-color: #ececec;
+            border-left: 0;
+            border-bottom: 0;
+        }
+        /* Input container styling */
+        .input-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 15px;
+            background-color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 10px; 
+        }
+        .input-container textarea {
+            flex: 1;
+            height: 60px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 1rem;
+            resize: none;
+            outline: none;
+        }
+        .input-container button {
+            padding: 15px 25px;
+            font-size: 1rem;
+            background-color: #007bff;
+            border: none;
+            border-radius: 20px;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            white-space: nowrap; 
+        }
+        .input-container button:hover {
+            background-color: #0056b3;
         }
     </style>
 </head>
 <body>
-    <h1>Ask the AI</h1>
-    <form method="POST">
-        <label for="query">Enter your question:</label><br>
-        <textarea name="query" id="query" rows="4" placeholder="Type your question here...">{{ query }}</textarea><br>
-        <button type="submit">Submit</button>
-    </form>
-    {% if answer %}
-        <div class="answer">
-            <h2>Answer:</h2>
-            <p>{{ answer }}</p>
-        </div>
-    {% endif %}
+    <!-- Chat container to display conversation history -->
+    <div class="chat-container">
+        {% if conversation %}
+            {% for turn in conversation %}
+                <!-- User message appears first -->
+                <div class="message user-message">
+                    <strong>You:</strong>
+                    <div>{{ turn.question }}</div>
+                </div>
+                <!-- AI message follows -->
+                <div class="message bot-message">
+                    <strong>AI:</strong>
+                    <div>{{ turn.answer }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    
+    <!-- Input container fixed at the bottom -->
+    <div class="input-container">
+        <form method="POST">
+            <textarea name="query" rows="3" placeholder="Ask a question..."></textarea>
+            <button type="submit">Send</button>
+            <button type="submit" name="reset" value="true">Reset Chat</button>
+        </form>        
+    </div>
 </body>
 </html>
