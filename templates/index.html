@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Query Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+        textarea {
+            width: 100%;
+            max-width: 600px;
+        }
+        button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            font-size: 1rem;
+        }
+        .answer {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f2f2f2;
+            border-radius: 5px;
+            max-width: 600px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ask the AI</h1>
+    <form method="POST">
+        <label for="query">Enter your question:</label><br>
+        <textarea name="query" id="query" rows="4" placeholder="Type your question here...">{{ query }}</textarea><br>
+        <button type="submit">Submit</button>
+    </form>
+    {% if answer %}
+        <div class="answer">
+            <h2>Answer:</h2>
+            <p>{{ answer }}</p>
+        </div>
+    {% endif %}
+</body>
+</html>
