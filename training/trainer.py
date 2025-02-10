@@ -1,26 +1,38 @@
 import os
 from transformers import T5Tokenizer, T5ForConditionalGeneration, Seq2SeqTrainer, Seq2SeqTrainingArguments
 from datasets import Dataset
-from training_data import training_data
+from training_data import training_data  # Your manual data
+from wiki_training_data import training_data_wiki  # Wikipedia-based data
 
-# ---------- Optional: Adapter Tuning Setup (Requires the adapter-transformers package) ------------
-# Uncomment and install adapter-transformers if you want to try adapter tuning.
-#
-# from transformers.adapters import AdapterConfig
-# adapter_config = AdapterConfig.load("pfeiffer", reduction_factor=2)
-# model.add_adapter("domain_adapter", config=adapter_config)
-# model.train_adapter("domain_adapter")
-# ------------------------------------------------------------------------------------------------
+# Merge your training data.
+merged_training_data = {
+    "input_text": training_data["input_text"] + training_data_wiki["input_text"],
+    "target_text": training_data["target_text"] + training_data_wiki["target_text"],
+}
+dataset = Dataset.from_dict(merged_training_data)
 
 # Step 1. Load the tokenizer and model.
 model_name = "google/flan-t5-base"
 tokenizer = T5Tokenizer.from_pretrained(model_name)
 model = T5ForConditionalGeneration.from_pretrained(model_name)
 
-# Step 2. Create the training dataset with expanded and refined examples.
-dataset = Dataset.from_dict(training_data)
+# ---------- PEFT / LoRA Adapter Tuning Setup ------------
+from peft import LoraConfig, get_peft_model
 
-# Step 3. Preprocess the data: tokenize inputs and targets.
+# Create a LoRA configuration for sequence-to-sequence fine-tuning.
+lora_config = LoraConfig(
+    task_type="SEQ_2_SEQ_LM",
+    inference_mode=False,  # Set to True for inference; False for training.
+    r=8,                   # Rank of the low-rank decomposition.
+    lora_alpha=32,         # Scaling parameter.
+    lora_dropout=0.1       # Dropout probability.
+)
+
+# Wrap your model with the PEFT model using the LoRA configuration.
+model = get_peft_model(model, lora_config)
+# ---------------------------------------------------------
+
+# Step 2. Preprocess the data: tokenize inputs and targets.
 def preprocess_function(examples):
     model_inputs = tokenizer(
         examples["input_text"],
@@ -40,12 +52,12 @@ def preprocess_function(examples):
 tokenized_dataset = dataset.map(preprocess_function, batched=True)
 tokenized_dataset = tokenized_dataset.remove_columns(["input_text", "target_text"])
 
-# Step 4. Set up training arguments with improved hyperparameters.
+# Step 3. Set up training arguments.
 training_args = Seq2SeqTrainingArguments(
-    output_dir="./results",
-    num_train_epochs=10,
-    per_device_train_batch_size=2,
-    gradient_accumulation_steps=2,
+    output_dir="./results_peft",
+    num_train_epochs=14,
+    per_device_train_batch_size=4,
+    gradient_accumulation_steps=1,
     save_steps=50,
     logging_steps=10,
     do_train=True,
@@ -53,7 +65,7 @@ training_args = Seq2SeqTrainingArguments(
     predict_with_generate=True,
 )
 
-# Step 5. Initialize the trainer.
+# Step 4. Initialize the trainer.
 trainer = Seq2SeqTrainer(
     model=model,
     args=training_args,
@@ -61,9 +73,9 @@ trainer = Seq2SeqTrainer(
     tokenizer=tokenizer,
 )
 
-# Step 6. Start training.
+# Step 5. Start training.
 trainer.train()
 
-# Save the final model.
+# Save the final model (including the adapter).
 model.save_pretrained(os.path.join(training_args.output_dir, "final_model"))
 tokenizer.save_pretrained(os.path.join(training_args.output_dir, "final_model"))

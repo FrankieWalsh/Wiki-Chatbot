@@ -172,4 +172,7 @@ cython_debug/
 
 
 /results/
+/results_peft/
+/results_llama_peft/
+/results_llama_1b_peft/
 /flask_session/
